@@ -1,0 +1,10 @@
+__pycache__/
+*.egg-info/
+_work/
+.pytest_cache/
+.DS_Store
+# never commit participant audio or annotations
+*.wav
+*.flac
+*.TextGrid
+!tests/data/*.TextGrid

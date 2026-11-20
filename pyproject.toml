@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mfa-refine"
+version = "0.1.0"
+description = "Fix Montreal Forced Aligner TextGrids: re-transcribe, re-align in short chunks, cross-check, report."
+readme = "README.md"
+requires-python = ">=3.10"
+# Montreal Forced Aligner and PyTorch/torchaudio come from conda-forge (see environment.yml).
+dependencies = ["numpy", "scipy", "soundfile", "rapidfuzz", "faster-whisper"]
+
+[project.scripts]
+mfa-refine = "mfa_refine.cli:main"
+
+[tool.setuptools]
+packages = ["mfa_refine"]
