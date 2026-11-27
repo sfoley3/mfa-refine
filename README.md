@@ -116,6 +116,46 @@ audio in Praat and fix the boundaries by hand.
 the skill folder to `~/.claude/skills/`, and ask it to "refine the MFA alignments in …". Claude
 will run the pipeline, read the report and go through the flagged chunks with you.
 
+## Benchmark against manual boundaries (TIMIT)
+
+`timit-prep` turns TIMIT's hand-labelled phones and words into three corpora with exact ground
+truth. TIMIT phones are mapped to MFA's `english_us_arpa` set: closure and release merge into one
+stop, `h#`/`pau`/`epi` become silence, and the glottal stop `q` merges into the next phone.
+
+- `utt/`: one file per utterance. This is MFA's best case.
+- `long/`: each speaker's utterances joined by 0.3–4 s pauses, like a long recording.
+- `long_disfl/`: like `long/`, but about half the utterances have a repeated word or phrase (a
+  restart) or a word cut out of the audio. The transcript doesn't show either, which is the
+  mismatch clinical recordings have. `disfluencies.csv` lists each one.
+
+Each corpus has `audio/` (`.wav` + `.lab`, an MFA corpus) and `ref/` (reference TextGrids). File
+stems start with the 5-character TIMIT speaker id. SA sentences are left out, and the default
+`--split core` is the 24-speaker core test set.
+
+```bash
+B=bench
+mfa-refine timit-prep --timit /path/to/TIMIT --out $B
+# 1-2. plain MFA on single utterances and on long recordings
+for c in utt long long_disfl; do
+  mfa align $B/$c/audio english_us_arpa english_us_arpa $B/$c/mfa --speaker_characters 5 --clean
+  mfa-refine eval --ref $B/$c/ref --hyp $B/$c/mfa
+done
+# 3. mfa-refine on the long recordings, starting from MFA's output
+for c in long long_disfl; do
+  mfa-refine run --audio $B/$c/audio --textgrids $B/$c/mfa --out $B/$c/refined --speaker-pattern '^(\w{5})_'
+  mfa-refine eval --ref $B/$c/ref --hyp $B/$c/refined --refine-report $B/$c/refined/refine_report.csv
+done
+```
+
+`eval` works on any two folders of TextGrids matched by file stem, e.g. a hand-corrected sample
+of your own data. It aligns the reference and output phone sequences by edit distance. Each
+reference phone paired with an output phone adds its onset, and its offset when silence follows.
+`eval` reports the median, mean and signed bias (ms), the % of boundaries within 10/20/30/50 ms
+and the % off by more than 100 ms, both overall and by boundary class (e.g. `stop>vowel`).
+`--refine-report` also counts how many words off by more than 100 ms fall in
+`check_by_hand`/`mfa_failed_chunks` or `flagged_words`, and how many flags were false alarms.
+`--report FILE` writes per-file scores.
+
 ## Tests
 
 ```bash

@@ -48,7 +48,33 @@ def main(argv=None):
     i.add_argument("name", help="file stem")
     i.add_argument("time", type=float, help="time (s) inside the chunk")
 
+    t = sub.add_parser("timit-prep", help="build benchmark corpora with exact ground truth from TIMIT")
+    t.add_argument("--timit", required=True, help="TIMIT root (the folder holding TRAIN/ and TEST/)")
+    t.add_argument("--out", required=True, help="output folder (gets utt/, long/, long_disfl/)")
+    t.add_argument("--split", default="core", choices=["core", "test", "train"],
+                   help="core test set (24 speakers, default), full test set, or train set")
+    t.add_argument("--seed", type=int, default=0, help="seed for pauses and spliced disfluencies")
+
+    e = sub.add_parser("eval", help="score TextGrids against reference TextGrids (phone and word boundaries)")
+    e.add_argument("--ref", required=True, help="folder of reference TextGrids (searched recursively)")
+    e.add_argument("--hyp", required=True, help="folder of TextGrids to score, matched by file stem")
+    e.add_argument("--words-tier", default="words")
+    e.add_argument("--phones-tier", default="phones")
+    e.add_argument("--report", help="write per-file scores to this CSV")
+    e.add_argument("--refine-report", help="refine_report.csv for HYP: also score its flags against true errors")
+
     a = ap.parse_args(argv)
+    if a.cmd == "timit-prep":
+        from .timit import build
+        build(a.timit, a.out, a.split, a.seed)
+        return
+    if a.cmd == "eval":
+        from .evaluate import evaluate, format_result, write_rows
+        res = evaluate(a.ref, a.hyp, a.words_tier, a.phones_tier, a.refine_report)
+        print(format_result(res))
+        if a.report:
+            write_rows(a.report, res["files"])
+        return
     cfg = Config(audio_dirs=a.audio, out_dir=a.out, textgrid_dirs=a.textgrids, work_dir=a.work,
                  words_tier=a.words_tier, speaker_pattern=a.speaker_pattern,
                  include=a.include, exclude=a.exclude)
